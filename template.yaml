@@ -8,17 +8,11 @@ Globals:
     MemorySize: 1024
     Runtime: java21
 
-Parameters:
-  Stage:
-    Type: String
-    Default: dev
-    Description: Deployment stage
-
 Resources:
   TikaLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: !Sub '${AWS::StackName}-tika-layer-${Stage}'
+      LayerName: !Sub '${AWS::StackName}-tika-layer'
       Description: Apache Tika dependencies layer
       ContentUri: tika-layer/target/layer
       CompatibleRuntimes:
@@ -28,7 +22,7 @@ Resources:
   TikaTextExtractorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub '${AWS::StackName}-tika-text-extractor-${Stage}'
+      FunctionName: !Sub '${AWS::StackName}-text-extractor'
       CodeUri: .
       Handler: com.example.TikaTextExtractorHandler::handleRequest
       Runtime: java21
@@ -36,9 +30,6 @@ Resources:
       MemorySize: 1024
       Layers:
         - !Ref TikaLayer
-      Environment:
-        Variables:
-          STAGE: !Ref Stage
       Policies:
         - Version: '2012-10-17'
           Statement:

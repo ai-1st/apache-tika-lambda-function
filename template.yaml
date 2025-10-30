@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Apache Tika Lambda Function for text extraction from URLs
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+    Runtime: java21
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    Description: Deployment stage
+
+Resources:
+  TikaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWS::StackName}-tika-layer-${Stage}'
+      Description: Apache Tika dependencies layer
+      ContentUri: tika-layer/target/layer
+      CompatibleRuntimes:
+        - java21
+      RetentionPolicy: Retain
+
+  TikaTextExtractorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-tika-text-extractor-${Stage}'
+      CodeUri: .
+      Handler: com.example.TikaTextExtractorHandler::handleRequest
+      Runtime: java21
+      Timeout: 30
+      MemorySize: 1024
+      Layers:
+        - !Ref TikaLayer
+      Environment:
+        Variables:
+          STAGE: !Ref Stage
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
+  TikaTextExtractorFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref TikaTextExtractorFunction
+      AuthType: NONE
+      Cors:
+        AllowCredentials: false
+        AllowHeaders:
+          - 'Content-Type'
+          - 'X-Amz-Date'
+          - 'Authorization'
+          - 'X-Api-Key'
+          - 'X-Amz-Security-Token'
+        AllowMethods:
+          - 'POST'
+        AllowOrigins:
+          - '*'
+        MaxAge: 600
+
+  TikaTextExtractorFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref TikaTextExtractorFunction
+      Principal: '*'
+      Action: lambda:InvokeFunctionUrl
+      FunctionUrlAuthType: NONE
+
+Outputs:
+  TikaFunctionUrl:
+    Description: "Tika Lambda Function URL"
+    Value: !GetAtt TikaTextExtractorFunctionUrl.FunctionUrl
+    Export:
+      Name: !Sub '${AWS::StackName}-TikaFunctionUrl'
+  
+  TikaFunctionArn:
+    Description: "Tika Lambda Function ARN"
+    Value: !GetAtt TikaTextExtractorFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-TikaFunctionArn'
